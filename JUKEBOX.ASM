@@ -9,47 +9,50 @@ start:          mov     ax,dane
                 mov     ax,offset szczyt
                 mov     sp,ax
 ;==============================================================================================
+                ;setup channel
                 mov     cx, 0
                 call    setup
+
+                ;setup file
+                call    setup_file
+
+                mov     ah, 42h
+                mov     al, 0
+                mov     cx, 0
+                mov     dx, 273Dh
+                int     21h
+
+test:
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     cx, 0
+                mov     dx, 7
+                int     21h
+
+                mov     ah, 3Fh
+                mov     cx, 1
+                lea     dx, buffer
+                int     21h
+
+                push    bx
+
+                xor     bx, bx
+                mov     bl, buffer
 
                 mov     cx, 1
-                call    setup
-
-                mov     cx, 2
-                call    setup
-
-                mov     si, 24
+                call    delta_time
+                mov     si, bx
                 mov     cx, 0
                 call    note_on
-                mov     cx, 10
+                mov     cx, 4
                 call    delta_time
                 mov     cx, 0
                 call    note_off
 
-                mov     si, 36
-                mov     cx, 0
-                call    note_on
-                mov     cx, 10
-                call    delta_time
-                mov     cx, 0
-                call    note_off
+                pop     bx
 
-                mov     si, 26
-                mov     cx, 0
-                call    note_on
-                mov     cx, 10
-                call    delta_time
-                mov     cx, 0
-                call    note_off
-
-                mov     si, 27
-                call    note_on
-                mov     cx, 10
-                call    delta_time
-                mov     cx, 0
-                call    note_off
-                mov     bx, 2
-                mul     bx
+                jmp     test
 
                 ;mov     cx, 5
                 ;call    delta_time
@@ -118,6 +121,38 @@ start:          mov     ax,dane
                 ret
                 setup endp
 
+                setup_file proc
+                mov     cl,es:[80h]
+                dec     cl
+                mov     si, offset file
+                mov     di, 82h
+            setupfile:       
+                mov     al,es:[di]
+                mov     ds:[si], al
+				inc     di
+                inc     si
+				dec     cl
+                jnz     setupfile
+
+                mov     ax, 3D00h
+                mov     dx, offset file
+                int     21h
+                jnc      fix1
+                jmp      file_err
+            fix1:
+                mov     bx, ax
+                ret
+                setup_file endp
+
+                file_err proc     
+                mov     ah, 9
+                mov     dx, offset strg_file_err
+                int     21h
+                mov     ah,4ch
+                mov     al,0
+                int     21h
+                file_err endp
+
                 ;Wstrzymanie odtwarzania
                 ;In  | cx: czas wstrzymania (10 = 1 sec)
                 delta_time proc
@@ -144,7 +179,12 @@ start:          mov     ax,dane
                 ;Naciśnięcie klawisza instrumentu
                 ;In  | si: id nuty midi, cx: kanał midi
                 note_on proc
-                push    ax bx
+                push    ax bx dx
+
+                mov     ah, 2h
+                mov     dx, si
+                int     21h
+
                 shl     si, 1
                 mov     ax, [note + si]
 
@@ -158,7 +198,7 @@ start:          mov     ax,dane
                 mov     bh, 34h
                 or      bh, ah
                 call    write_adlib
-                pop     bx ax
+                pop     dx bx ax
                 ret
                 note_on endp
 
@@ -189,6 +229,7 @@ start:          mov     ax,dane
                 pop dx cx bx ax
                 ret
                 write_adlib endp
+                
 
 Progr           ends
 
@@ -205,6 +246,12 @@ note            dw 8,       8,      9,      9,      10,     11,     11,     12, 
                 dw 2093,    2217,   2349,   2489,   2637,   2794,   2960,   3136,   3322,   3520,   3729,   3951
                 dw 4186,    4435,   4699,   4978,   5274,   5588,   5920,   6272,   6645,   7040,   7459,   7902
                 dw 8372,    8870,   9398,   9956,   10548,  11176,  11840,  12544
+
+strg_file_err   db      'Wrong file$'
+
+file            db      80h dup(0)
+
+buffer          db      '$$$$$$$$$'
 
 dane            ends
 
