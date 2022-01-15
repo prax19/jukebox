@@ -25,6 +25,7 @@ start:          mov     ax,dane
                 int     21h
 test3:
                 mov     ah, 3Fh
+                mov     al, 0
                 mov     bx, file_access
                 mov     cx, 1
                 lea     dx, buffer
@@ -47,9 +48,18 @@ test3:
 
                 call read_delta_time
 
-                ;mov     dx, 9680h
-                ;mov     cx, 6h
-                call conv_to_delay
+                ;mov     ax, cx
+                ;mov     bx, 16
+                ;div     bx
+                ;mov     cx, ax
+                ;mov     ax, dx
+                ;mov     bx, 4096
+                ;mul     bx
+                ;mov     dx, ax
+
+                ;mov     cx, 0
+                ;mov     dx, 0FFFh
+                ;call conv_to_delay
 
                 call delta_time
 
@@ -65,14 +75,21 @@ test3:
 
                 call read_delta_time
 
-                ;mov     dx, 0h
-                ;mov     cx, 0h
-                call conv_to_delay
+                ;mov     ax, cx
+                ;mov     bx, 16
+                ;div     bx
+                ;mov     cx, ax
+                ;mov     ax, dx
+                ;mov     bx, 4096
+                ;mul     bx
+                ;mov     dx, ax
+                ;call conv_to_delay
 
                 call delta_time
                 
                 mov     ah, 42h
                 mov     al, 1
+                mov     bx, file_access
                 mov     cx, 0
                 mov     dx, 1
                 int     21h
@@ -271,7 +288,7 @@ test2:
                 ;In  | none
                 ;Out | cx: 2 - bajtowy delta time
                 read_delta_time proc
-                push    dx bx
+                push    bx
                 xor     cx, cx
                 ;xor     bx, bx
                 ;mov     bl, 10000000b
@@ -300,7 +317,19 @@ test2:
             dt_read_2:
                 add     cx, dx
 
-                pop     bx dx
+                ;przeliczanie opóźnień
+                xor     dx, dx
+                mov     ax, cx
+                mov     bx, 16
+                div     bx
+                mov     cx, ax
+                mov     ax, dx
+                mov     bx, 4096
+                mul     bx
+                mov     dx, ax
+
+                pop     bx
+
                 ret
                 read_delta_time endp
 
@@ -344,10 +373,12 @@ test2:
                 ;Wstrzymanie odtwarzania
                 ;In  | cx: czas wstrzymania (10 = 1 sec)
                 delta_time proc
+                cmp     dx, 0
+                jnz     dt_skip2
                 cmp     cx, 0
                 jz      dt_skip
+            dt_skip2:
                 push    ax cx dx
-                xor     dx, dx
                 mov     ah, 86h
                 int     15h
                 pop     dx cx ax
