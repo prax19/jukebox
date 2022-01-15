@@ -18,18 +18,129 @@ start:          mov     ax,dane
 
                 mov     ah, 42h
                 mov     al, 0
+                mov     bx, file_access
                 mov     cx, 0
-                mov     dx, 273Dh
+                mov     dx, 2744h
+                ;mov     dx, 273Dh
+                int     21h
+                ;jmp     test2
+test3:
+                mov     ah, 3Fh
+                mov     bx, file_access
+                mov     cx, 1
+                lea     dx, buffer
                 int     21h
 
-test:
+                xor     bx, bx
+                mov     bl, buffer
 
+                mov     cx, 0
+                mov     si, bx
+                call note_on
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     bx, file_access
+                mov     cx, 0
+                mov     dx, 1
+                int     21h
+
+                call read_delta_time
+
+                mov     dx, 1
+                mov     cx, 2
+
+                call delta_time
+
+                mov     cx, 0
+                call note_off
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     bx, file_access
+                mov     cx, 0
+                mov     dx, 3
+                int     21h
+
+                call read_delta_time
+
+                mov     dx, 1
+                mov     cx, 0
+
+                ;call delta_time
+                
+                mov     ah, 42h
+                mov     al, 1
+                mov     cx, 0
+                mov     dx, 1
+                int     21h
+
+                jmp     test3
+
+test1:   
+                mov     ah, 3Fh
+                mov     cx, 1
+                lea     dx, buffer
+                int     21h
+
+                push    bx
+
+                xor     bx, bx
+                mov     bl, buffer
+
+                mov     cx, 0
+                mov     si, bx
+                call note_on
+
+                pop     bx
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     cx, 0
+                mov     dx, 1
+                int     21h
+
+                call read_delta_time
+
+                mov     dx, 1
+                mov     cx, 2
+
+                call delta_time
+
+                mov     cx, 0
+                call note_off
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     cx, 0
+                mov     dx, 3
+                int     21h
+
+                call read_delta_time
+
+                mov     dx, 1
+                mov     cx, 1
+
+                call delta_time
+
+                mov     ah, 42h
+                mov     al, 1
+                mov     cx, 0
+                mov     dx, 1
+                int     21h
+
+                jmp test1
+
+
+test2:
+                ;ustawianie wskaźnika pliku
                 mov     ah, 42h
                 mov     al, 1
                 mov     cx, 0
                 mov     dx, 7
                 int     21h
 
+                ;odczyt z pliku
                 mov     ah, 3Fh
                 mov     cx, 1
                 lea     dx, buffer
@@ -52,7 +163,7 @@ test:
 
                 pop     bx
 
-                jmp     test
+                jmp     test2
 
                 ;mov     cx, 5
                 ;call    delta_time
@@ -137,10 +248,11 @@ test:
                 mov     ax, 3D00h
                 mov     dx, offset file
                 int     21h
-                jnc      fix1
-                jmp      file_err
+                jnc     fix1
+                jmp     file_err
             fix1:
-                mov     bx, ax
+                mov     di, 0
+                mov     file_access, ax
                 ret
                 setup_file endp
 
@@ -152,6 +264,38 @@ test:
                 mov     al,0
                 int     21h
                 file_err endp
+
+                ;Odczytanie czasu delta
+                ;In  | none
+                ;Out | cx: 2 - bajtowy delta time
+                read_delta_time proc
+                push    dx bx
+                xor     cx, cx
+                ;xor     bx, bx
+                ;mov     bl, 10000000b
+            dt_read_1:
+                push    cx
+                mov     ah, 3Fh
+                mov     bx, file_access
+                mov     cx, 1
+                lea     dx, buffer
+                int     21h
+                pop     cx
+
+                xor     dx, dx
+                mov     dl, buffer
+
+                mov     ah, 2h
+                int     21h
+
+                cmp     dl, 81h
+                jb      dt_read_2
+
+                jmp     dt_read_1
+            dt_read_2:
+                pop     bx dx
+                ret
+                read_delta_time endp
 
                 ;Wstrzymanie odtwarzania
                 ;In  | cx: czas wstrzymania (10 = 1 sec)
@@ -250,6 +394,8 @@ note            dw 8,       8,      9,      9,      10,     11,     11,     12, 
 strg_file_err   db      'Wrong file$'
 
 file            db      80h dup(0)
+
+file_access     dw      0h
 
 buffer          db      '$$$$$$$$$'
 
