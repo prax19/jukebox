@@ -21,9 +21,8 @@ start:          mov     ax,dane
                 mov     bx, file_access
                 mov     cx, 0
                 mov     dx, 2744h
-                ;mov     dx, 273Dh
+                ;mov     dx, 79h
                 int     21h
-                ;jmp     test2
 test3:
                 mov     ah, 3Fh
                 mov     bx, file_access
@@ -35,6 +34,7 @@ test3:
                 mov     bl, buffer
 
                 mov     cx, 0
+                sub     bx, 12
                 mov     si, bx
                 call note_on
 
@@ -47,8 +47,9 @@ test3:
 
                 call read_delta_time
 
-                mov     dx, 1
-                mov     cx, 2
+                ;mov     dx, 9680h
+                ;mov     cx, 6h
+                call conv_to_delay
 
                 call delta_time
 
@@ -64,10 +65,11 @@ test3:
 
                 call read_delta_time
 
-                mov     dx, 1
-                mov     cx, 0
+                ;mov     dx, 0h
+                ;mov     cx, 0h
+                call conv_to_delay
 
-                ;call delta_time
+                call delta_time
                 
                 mov     ah, 42h
                 mov     al, 1
@@ -291,20 +293,65 @@ test2:
                 cmp     dl, 81h
                 jb      dt_read_2
 
+                dec     dx
+                add     cx, dx
+
                 jmp     dt_read_1
             dt_read_2:
+                add     cx, dx
+
                 pop     bx dx
                 ret
                 read_delta_time endp
 
+                conv_to_delay proc
+                cmp     cx, 18h
+                jz      tim18
+                cmp     cx, 30h
+                jz      tim30
+                cmp     cx, 60h
+                jz      tim60
+                cmp     cx, 90h
+                jz      tim81_10
+                cmp     cx, 0F0h
+                jz      tim81_70
+                cmp     cx, 0B2h
+                jz      tim83_30
+                mov     cx, 0
+                jmp     tim_end
+            tim18:
+                mov     cx, 1
+                jmp     tim_end
+            tim30:
+                mov     cx, 2
+                jmp     tim_end
+            tim60:
+                mov     cx, 4
+                jmp     tim_end
+            tim81_10:
+                mov     cx, 6
+                jmp     tim_end
+            tim81_70:
+                mov     cx, 10
+                jmp     tim_end
+            tim83_30:
+                mov     cx, 16
+                jmp     tim_end
+            tim_end:
+                ret
+                conv_to_delay endp
+
                 ;Wstrzymanie odtwarzania
                 ;In  | cx: czas wstrzymania (10 = 1 sec)
                 delta_time proc
+                cmp     cx, 0
+                jz      dt_skip
                 push    ax cx dx
                 xor     dx, dx
                 mov     ah, 86h
                 int     15h
                 pop     dx cx ax
+            dt_skip:
                 ret
                 delta_time endp
 
