@@ -13,6 +13,12 @@ start:          mov     ax,dane
                 mov     cx, 0
                 call    setup
 
+                mov     cx, 1
+                call    setup
+
+                mov     cx, 2
+                call    setup
+
                 ;setup file
                 call    setup_file
 
@@ -20,8 +26,8 @@ start:          mov     ax,dane
                 mov     al, 0
                 mov     bx, file_access
                 mov     cx, 0
-                ;mov     dx, 2744h
-                mov     dx, 2743h
+                ;mov     dx, 2742h
+                mov     dx, 271Fh
                 ;mov     dx, 79h
                 int     21h
                 
@@ -322,6 +328,9 @@ test2:
 
                 next_event proc
                 push    ax bx cx dx
+                call read_delta_time
+                call delta_time
+
                 call read_byte
 
                 mov     al, bl
@@ -330,16 +339,45 @@ test2:
                 shr     ah, 4
                 and     al, 00001111b 
 
-                cmp     ah, 9h
-                jz      event9
-
-                cmp     ah, 8h
+                cmp     ah, 8h ;note off
                 jz      event8
 
+                cmp     ah, 9h ;note on
+                jz      event9
+
+                cmp     ah, 0Ah ;note aftertouch
+                jz      event_4bit
+                
+                cmp     ah, 0Bh ;controller
+                jz      event_4bit
+
+                cmp     ah, 0Ch ;program change
+                jz      event_3bit
+
+                cmp     ah, 0Dh ;channel aftertouch
+                jz      event_3bit
+
+                cmp     ah, 0Eh ;pitch
+                jz      event_4bit
+
                 jmp     event_err
+
+            event8: ;note off
+                call read_byte
+                mov     cl, al
+                dec     channel_key
+                add     cl, channel_key
+                call note_off
+                xor     cx, cx
+                mov     dx, 1
+                call skip_bytes
+                jmp     event_r
+
             event9: ;note on
                 call read_byte
                 mov     cl, al
+                add     cl, channel_key
+                inc     channel_key
                 sub     bx, 12
                 mov     si, bx
                 call note_on
@@ -348,20 +386,23 @@ test2:
                 call skip_bytes
                 jmp     event_r
 
-            event8: ;note off
-                call read_byte
-                mov     cl, al
-                call note_off
+            event_3bit: ;brak obsługi dla 3-bitowego eventu
                 xor     cx, cx
                 mov     dx, 1
                 call skip_bytes
-                jmp     event_r
+            jmp     event_r
+
+            event_4bit: ;brak obsługi dla 4-bitowego eventu
+                xor     cx, cx
+                mov     dx, 2
+                call skip_bytes
+            jmp     event_r
+
             event_err:
+            jmp     event_r
 
             event_r:
                 pop     dx cx bx ax
-                call read_delta_time
-                call delta_time
 
                 ret
                 next_event endp
@@ -402,7 +443,7 @@ test2:
                 ;przeliczanie opóźnień
                 xor     dx, dx
                 mov     ax, cx
-                mov     bx, 16
+                mov     bx, 24
                 div     bx
                 mov     cx, ax
                 mov     ax, dx
@@ -496,7 +537,6 @@ test2:
                 pop dx cx bx ax
                 ret
                 write_adlib endp
-                
 
 Progr           ends
 
@@ -519,6 +559,8 @@ strg_file_err   db      'Wrong file$'
 file            db      80h dup(0)
 
 file_access     dw      0h
+
+channel_key     db      0
 
 buffer          db      '$$$$$$$$$'
 
