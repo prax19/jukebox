@@ -20,9 +20,16 @@ start:          mov     ax,dane
                 mov     al, 0
                 mov     bx, file_access
                 mov     cx, 0
-                mov     dx, 2744h
+                ;mov     dx, 2744h
+                mov     dx, 2743h
                 ;mov     dx, 79h
                 int     21h
+                
+test4:
+                call next_event
+
+                jmp     test4
+
 test3:
                 mov     ah, 3Fh
                 mov     al, 0
@@ -284,11 +291,86 @@ test2:
                 int     21h
                 file_err endp
 
+                read_byte proc
+                push    ax cx dx
+                mov     ah, 3Fh
+                mov     al, 0
+                mov     bx, file_access
+                mov     cx, 1
+                lea     dx, buffer
+                int     21h
+
+                xor     bx, bx
+                mov     bl, buffer
+                pop     dx cx ax
+
+                ret
+                read_byte endp
+
+                
+                ;Pomijanie bajtów w pliku
+                ;In  | cx:dx : ilość bajtów do pominięcia
+                skip_bytes proc
+                push    ax bx
+                mov     ah, 42h
+                mov     al, 1
+                mov     bx, file_access
+                int     21h
+                pop     bx ax
+                ret
+                skip_bytes endp
+
+                next_event proc
+                push    ax bx cx dx
+                call read_byte
+
+                mov     al, bl
+                mov     ah, bl
+                and     ah, 11110000b 
+                shr     ah, 4
+                and     al, 00001111b 
+
+                cmp     ah, 9h
+                jz      event9
+
+                cmp     ah, 8h
+                jz      event8
+
+                jmp     event_err
+            event9: ;note on
+                call read_byte
+                mov     cl, al
+                sub     bx, 12
+                mov     si, bx
+                call note_on
+                xor     cx, cx
+                mov     dx, 1
+                call skip_bytes
+                jmp     event_r
+
+            event8: ;note off
+                call read_byte
+                mov     cl, al
+                call note_off
+                xor     cx, cx
+                mov     dx, 1
+                call skip_bytes
+                jmp     event_r
+            event_err:
+
+            event_r:
+                pop     dx cx bx ax
+                call read_delta_time
+                call delta_time
+
+                ret
+                next_event endp
+
                 ;Odczytanie czasu delta
                 ;In  | none
-                ;Out | cx: 2 - bajtowy delta time
+                ;Out | cx:dx : czas w mikrosekundach
                 read_delta_time proc
-                push    bx
+                push    ax bx
                 xor     cx, cx
                 ;xor     bx, bx
                 ;mov     bl, 10000000b
@@ -328,61 +410,24 @@ test2:
                 mul     bx
                 mov     dx, ax
 
-                pop     bx
+                pop     bx ax
 
                 ret
                 read_delta_time endp
 
-                conv_to_delay proc
-                cmp     cx, 18h
-                jz      tim18
-                cmp     cx, 30h
-                jz      tim30
-                cmp     cx, 60h
-                jz      tim60
-                cmp     cx, 90h
-                jz      tim81_10
-                cmp     cx, 0F0h
-                jz      tim81_70
-                cmp     cx, 0B2h
-                jz      tim83_30
-                mov     cx, 0
-                jmp     tim_end
-            tim18:
-                mov     cx, 1
-                jmp     tim_end
-            tim30:
-                mov     cx, 2
-                jmp     tim_end
-            tim60:
-                mov     cx, 4
-                jmp     tim_end
-            tim81_10:
-                mov     cx, 6
-                jmp     tim_end
-            tim81_70:
-                mov     cx, 10
-                jmp     tim_end
-            tim83_30:
-                mov     cx, 16
-                jmp     tim_end
-            tim_end:
-                ret
-                conv_to_delay endp
-
                 ;Wstrzymanie odtwarzania
-                ;In  | cx: czas wstrzymania (10 = 1 sec)
+                ;In  | cx:dx czas wstrzymania w mikrosekundach
                 delta_time proc
+                push    ax bx cx dx
                 cmp     dx, 0
                 jnz     dt_skip2
                 cmp     cx, 0
                 jz      dt_skip
             dt_skip2:
-                push    ax cx dx
                 mov     ah, 86h
                 int     15h
-                pop     dx cx ax
             dt_skip:
+                pop     dx cx bx ax
                 ret
                 delta_time endp
 
@@ -401,7 +446,7 @@ test2:
                 ;Naciśnięcie klawisza instrumentu
                 ;In  | si: id nuty midi, cx: kanał midi
                 note_on proc
-                push    ax bx dx
+                push    ax bx cx dx
 
                 mov     ah, 2h
                 mov     dx, si
@@ -420,7 +465,7 @@ test2:
                 mov     bh, 34h
                 or      bh, ah
                 call    write_adlib
-                pop     dx bx ax
+                pop     dx cx bx ax
                 ret
                 note_on endp
 
