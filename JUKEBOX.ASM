@@ -26,197 +26,24 @@ start:          mov     ax,dane
                 mov     al, 0
                 mov     bx, file_access
                 mov     cx, 0
-                ;mov     dx, 2742h
-                mov     dx, 271Fh
-                ;mov     dx, 79h
+                ;mov     dx, 271Fh
+                mov     dx, 3FE7h
+                ;mov     dx, 16h
                 int     21h
                 
 test4:
                 call next_event
 
-                jmp     test4
+                cmp     finish, 1
+                jnz     test4
 
-test3:
-                mov     ah, 3Fh
-                mov     al, 0
-                mov     bx, file_access
-                mov     cx, 1
-                lea     dx, buffer
-                int     21h
-
-                xor     bx, bx
-                mov     bl, buffer
-
-                mov     cx, 0
-                sub     bx, 12
-                mov     si, bx
-                call note_on
-
-                mov     ah, 42h
-                mov     al, 1
-                mov     bx, file_access
-                mov     cx, 0
-                mov     dx, 1
-                int     21h
-
-                call read_delta_time
-
-                ;mov     ax, cx
-                ;mov     bx, 16
-                ;div     bx
-                ;mov     cx, ax
-                ;mov     ax, dx
-                ;mov     bx, 4096
-                ;mul     bx
-                ;mov     dx, ax
-
-                ;mov     cx, 0
-                ;mov     dx, 0FFFh
-                ;call conv_to_delay
-
-                call delta_time
-
-                mov     cx, 0
-                call note_off
-
-                mov     ah, 42h
-                mov     al, 1
-                mov     bx, file_access
-                mov     cx, 0
-                mov     dx, 3
-                int     21h
-
-                call read_delta_time
-
-                ;mov     ax, cx
-                ;mov     bx, 16
-                ;div     bx
-                ;mov     cx, ax
-                ;mov     ax, dx
-                ;mov     bx, 4096
-                ;mul     bx
-                ;mov     dx, ax
-                ;call conv_to_delay
-
-                call delta_time
-                
-                mov     ah, 42h
-                mov     al, 1
-                mov     bx, file_access
-                mov     cx, 0
-                mov     dx, 1
-                int     21h
-
-                jmp     test3
-
-test1:   
-                mov     ah, 3Fh
-                mov     cx, 1
-                lea     dx, buffer
-                int     21h
-
-                push    bx
-
-                xor     bx, bx
-                mov     bl, buffer
-
-                mov     cx, 0
-                mov     si, bx
-                call note_on
-
-                pop     bx
-
-                mov     ah, 42h
-                mov     al, 1
-                mov     cx, 0
-                mov     dx, 1
-                int     21h
-
-                call read_delta_time
-
-                mov     dx, 1
-                mov     cx, 2
-
-                call delta_time
-
-                mov     cx, 0
-                call note_off
-
-                mov     ah, 42h
-                mov     al, 1
-                mov     cx, 0
-                mov     dx, 3
-                int     21h
-
-                call read_delta_time
-
-                mov     dx, 1
-                mov     cx, 1
-
-                call delta_time
-
-                mov     ah, 42h
-                mov     al, 1
-                mov     cx, 0
-                mov     dx, 1
-                int     21h
-
-                jmp test1
-
-
-test2:
-                ;ustawianie wskaźnika pliku
-                mov     ah, 42h
-                mov     al, 1
-                mov     cx, 0
-                mov     dx, 7
-                int     21h
-
-                ;odczyt z pliku
-                mov     ah, 3Fh
-                mov     cx, 1
-                lea     dx, buffer
-                int     21h
-
-                push    bx
-
-                xor     bx, bx
-                mov     bl, buffer
-
-                mov     cx, 1
-                call    delta_time
-                mov     si, bx
-                mov     cx, 0
-                call    note_on
-                mov     cx, 4
-                call    delta_time
-                mov     cx, 0
-                call    note_off
-
-                pop     bx
-
-                jmp     test2
-
-                ;mov     cx, 5
-                ;call    delta_time
-
-                ;mov     cx, 0
-                ;call    note_off
-
-                ;mov     ax, 150
-                ;call    note_on
-                
-                ;mov     cx, 10
-                ;call    delta_time
-
-                ;mov     cx, 0
-                ;call    note_off
 ;==============================================================================================
                 mov     ah,4ch
                 mov     al,0
                 int     21h
 
                 setup proc
+                push    ax bx cx dx
                 mov     bl, 20h
                 add     bl, cl
                 mov     bh, 33h
@@ -261,6 +88,7 @@ test2:
                 add     bl, cl
                 mov     bh, 000h
                 call    write_adlib
+                pop     dx cx bx ax
                 ret
                 setup endp
 
@@ -360,6 +188,9 @@ test2:
                 cmp     ah, 0Eh ;pitch
                 jz      event_4bit
 
+                cmp     ah, 0Fh ;meta eventy
+                jz      event_meta
+
                 jmp     event_err
 
             event8: ;note off
@@ -398,6 +229,12 @@ test2:
                 call skip_bytes
             jmp     event_r
 
+            event_meta: ;meta eventy
+                cmp     bl, 0FFh
+                jnz     event_r
+                call meta_event
+                jmp     event_r
+
             event_err:
             jmp     event_r
 
@@ -406,6 +243,79 @@ test2:
 
                 ret
                 next_event endp
+
+                ;obsługa meta eventów
+                ;IN  |
+                meta_event proc
+
+                xor     bx, bx
+                call read_byte ;odczyt typu metaeventu
+
+                xor     cx, cx
+                mov     cl, bl  
+
+                call read_byte ;odczyt długości me
+
+                cmp     cl, 2
+                jz      me_text
+
+                cmp     cl, 3
+                jz      me_text
+
+                cmp     cl, 4
+                jz      me_text
+
+                cmp     cl, 5
+                jz      me_text
+
+                cmp     cl, 6
+                jz      me_text
+
+                cmp     cl, 7
+                jz      me_text
+
+                cmp     cl, 2Fh ;end
+                jz      me_end_of_track
+
+                jmp     me_err
+
+            me_text:
+                xor     cx, cx
+                mov     cl, bl
+
+                me_text_1:
+
+                xor     bx, bx
+                call read_byte
+
+                mov     ah, 2h
+                mov     dx, bx
+                int     21h
+
+                loop    me_text_1
+
+                jmp     me_r
+
+            me_end_of_track:
+                xor     cx, cx
+                mov     cl, bl
+
+                mov     finish, 1
+                
+                jmp     me_r
+        
+            me_text2:
+                xor     cx, cx
+                mov     cl, bl
+                
+                jmp     me_r
+
+            me_err:
+                jmp     me_r
+
+            me_r:
+                ret
+                meta_event endp
 
                 ;Odczytanie czasu delta
                 ;In  | none
@@ -559,6 +469,8 @@ strg_file_err   db      'Wrong file$'
 file            db      80h dup(0)
 
 file_access     dw      0h
+
+finish          db      0
 
 channel_key     db      0
 
