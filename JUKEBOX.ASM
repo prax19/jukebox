@@ -9,18 +9,15 @@ start:          mov     ax,dane
                 mov     ax,offset szczyt
                 mov     sp,ax
 ;==============================================================================================
-                ;setup channel
-                mov     cx, 0
-                call    setup
-
-                mov     cx, 1
-                call    setup
-
-                mov     cx, 2
-                call    setup
-
                 ;setup file
                 call    setup_file
+
+                xor     cx, cx
+                mov     dx, 0
+                mov     ah, 42h
+                mov     al, 0
+                mov     bx, file_access
+                int     21h
 
                 ;odczyt ilości tracków
                 xor     cx, cx
@@ -34,9 +31,12 @@ start:          mov     ax,dane
 
                 mov     track_num, ax
 
-                xor     cx, cx
-                mov     dx, 2
-                call skip_bytes
+                call read_byte
+                mov     ah, bl
+                call read_byte
+                mov     al, bl
+
+                mov     time_division, ax
 
                 mov     cx, track_num
                 mov     ax, 14
@@ -72,32 +72,67 @@ start:          mov     ax,dane
 
                 mov     di, 10
 
+                ;call    me_set_tempo
+
+;;;;;           
+
+                push    cx
+                mov     cx, track_num
+                mov     ax, 0
+test6:
+                mov     mode, 2
+                push    ax
+                call point_track
+
+test5:
+                call next_event
+
+                cmp     mode, 2
+                je      test5
+
+                pop     ax
+                inc     ax
+
+                loop    test6
+                pop     cx
+
+                mov     channel_key, 0
+
+                mov     mode, 1
+
                 ;wskazywanie tracku
                 mov     ah, 08h
                 int     21h
 
+                mov     ah, 02h
+                mov     dl, al
+                int     21h
+
                 mov     ah, 0
                 sub     ax, 48
-                mov     bx, 2
-                mul     bx
 
-                mov     di, ax
+                call point_track 
 
-                mov     ah, 42h
-                mov     al, 0
-                mov     dx, track_pos + di
-                mov     bx, file_access
-                int     21h                
+;;;;
 
-                xor     cx, cx
-                mov     dx, 8
-                call skip_bytes
+                mov     cx, 0
+                call    setup
+
+                mov     cx, 1
+                call    setup
+
+                mov     cx, 2
+                call    setup
+
+                
                 
 test4:
+                call read_delta_time
+                call delta_time
                 call next_event
 
-                cmp     finish, 1
-                jnz     test4
+                cmp     mode, 1
+                je     test4
 
 ;==============================================================================================
                 mov     ah,4ch
@@ -203,6 +238,30 @@ test4:
                 ret
                 read_byte endp
 
+                ;IN  | AX: numer ścieżki
+                point_track proc
+                push    ax bx cx dx
+
+                mov     bx, 2
+                mul     bx
+
+                mov     di, ax
+
+                xor     cx, cx
+                mov     ah, 42h
+                mov     al, 0
+                mov     dx, track_pos + di
+                mov     bx, file_access
+                int     21h 
+
+                xor     cx, cx
+                mov     dx, 8
+                call skip_bytes
+
+                pop     dx cx bx ax
+
+                ret
+                point_track endp
                 
                 ;Pomijanie bajtów w pliku
                 ;In  | cx:dx : ilość bajtów do pominięcia
@@ -218,8 +277,6 @@ test4:
 
                 next_event proc
                 push    ax bx cx dx
-                call read_delta_time
-                call delta_time
 
                 call read_byte
 
@@ -257,10 +314,14 @@ test4:
 
             event8: ;note off
                 call read_byte
-                mov     cl, al
+                ;mov     cl, al
+                mov     cl, 0
                 dec     channel_key
                 add     cl, channel_key
+                cmp     mode, 2
+                je      event8_1
                 call note_off
+                event8_1:
                 xor     cx, cx
                 mov     dx, 1
                 call skip_bytes
@@ -268,12 +329,16 @@ test4:
 
             event9: ;note on
                 call read_byte
-                mov     cl, al
+                ;mov     cl, al
+                mov     cl, 0
                 add     cl, channel_key
                 inc     channel_key
                 sub     bx, 12
                 mov     si, bx
+                cmp     mode, 2
+                je      event9_1
                 call note_on
+                event9_1:
                 xor     cx, cx
                 mov     dx, 1
                 call skip_bytes
@@ -340,7 +405,7 @@ test4:
                 jz      me_empty
 
                 cmp     cl, 81
-                jz      me_empty
+                jz      me_set_tempo
 
                 cmp     cl, 84
                 jz      me_empty
@@ -374,6 +439,10 @@ test4:
 
                 loop    me_text_1
 
+                mov     ah, 02h
+                mov     dl, 32
+                int     21h
+
                 jmp     me_r
 
             me_empty: ;pusty meta event
@@ -385,11 +454,22 @@ test4:
 
                 jmp     me_r
 
+            me_set_tempo:
+                call read_byte
+                mov     tempo, bx
+                call read_byte
+                mov     ah, bl
+                call read_byte
+                mov     bh, ah
+                mov     tempo + 2, bx
+                
+                jmp     me_r
+
             me_end_of_track:
                 xor     cx, cx
                 mov     cl, bl
 
-                mov     finish, 1
+                mov     mode, 0
                 
                 jmp     me_r
         
@@ -457,9 +537,70 @@ test4:
                 mov     ah, 86h
                 int     15h
             dt_skip:
+                mov     ah, 2h
+                mov     dl, 20h
+                int     21h
                 pop     dx cx bx ax
                 ret
                 delta_time endp
+
+                disp_note proc
+                push    ax bx cx dx si
+
+                xor     bx, bx
+                mov     ax, dx
+                mov     bl, 12
+                div     bl
+                mov     al, 0
+                mov     di, dx
+
+                ;mov     di, ax
+
+                ;cmp     ax, 0
+                ;je      disp_c
+
+                ;cmp     ax, 1
+                ;je      disp_c#
+                                
+                ;cmp     ax, 2
+                ;je      disp_d
+                                
+                ;cmp     ax, 3
+                ;je      disp_d#
+                                
+                ;cmp     ax, 4
+                ;je      disp_e
+                                
+                ;cmp     ax, 5
+                ;je      disp_f
+                                
+                ;cmp     ax, 6
+               ; je      disp_f#
+                                
+          ;      cmp     ax, 7
+         ;       je      disp_g
+                                
+            ;    cmp     ax, 8
+            ;    je      disp_g#
+                                
+            ;    cmp     ax, 9
+             ;   je      disp_a
+                                
+            ;    cmp     ax, 10
+           ;     je      disp_a#
+                                
+            ;    cmp     ax, 11
+            ;    je      disp_h
+
+                mov     di, 11
+
+                mov     ah, 2h
+                mov     dl, note_sign + di
+                int     21h
+
+                pop     si dx cx bx ax
+                ret
+                disp_note endp
 
                 ;Zwolnienie klawisza instrumentu
                 ;In  | cx: kanał midi
@@ -478,9 +619,8 @@ test4:
                 note_on proc
                 push    ax bx cx dx
 
-                mov     ah, 2h
                 mov     dx, si
-                int     21h
+                call disp_note
 
                 shl     si, 1
                 mov     ax, [note + si]
@@ -530,6 +670,9 @@ test4:
 Progr           ends
 
 dane            segment
+
+note_sign       db 67,67,68,68,69,70,70,71,71,65,65,72
+
                 ;  C        C#      D       D#      E       F       F#      G       G#      A       A#      H
 note            dw 8,       8,      9,      9,      10,     11,     11,     12,     13,     14,     15,     16
                 dw 16,      17,     18,     19,     21,     22,     23,     25,     26,     28,     29,     31
@@ -543,19 +686,22 @@ note            dw 8,       8,      9,      9,      10,     11,     11,     12, 
                 dw 4186,    4435,   4699,   4978,   5274,   5588,   5920,   6272,   6645,   7040,   7459,   7902
                 dw 8372,    8870,   9398,   9956,   10548,  11176,  11840,  12544
 
-strg_file_err   db      'Wrong file$'
+strg_file_err   db      'Podano zly plik$'
+
+strg_start_msg1 db      'Podaj numer ścieżki MIDI (0 - $'
+strg_start_msg2 db      '): $'
 
 file            db      80h dup(0)
 
 file_access     dw      0h
 
-tempo           dw      3h, 0FB06h
+tempo           dw      0000h, 0000h;3h, 0FB06h
 
 note_time       dd      0
 
-time_division   dw      96
+time_division   dw      0
 
-finish          db      0
+mode            db      2
 
 channel_key     db      0
 
