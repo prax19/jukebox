@@ -22,13 +22,6 @@ start:          mov     ax,dane
                 ;setup file
                 call    setup_file
 
-                ;mov     ah, 42h
-                ;mov     al, 0
-                ;mov     bx, file_access
-                ;mov     cx, 0
-                ;mov     dx, 3FE7h
-                ;int     21h
-
                 ;odczyt ilości tracków
                 xor     cx, cx
                 mov     dx, 10
@@ -79,18 +72,7 @@ start:          mov     ax,dane
 
                 mov     di, 10
 
-                ;mov     ah, 42h
-                ;mov     al, 0
-                ;mov     dx, track_pos + di
-                ;mov     bx, file_access
-                ;int     21h
-
-                ;call read_byte
-
-                ;mov     ah, 02h
-                ;mov     dl, bl
-                ;int     21h
-
+                ;wskazywanie tracku
                 mov     ah, 08h
                 int     21h
 
@@ -100,8 +82,6 @@ start:          mov     ax,dane
                 mul     bx
 
                 mov     di, ax
-
-                ;mov     di, 8
 
                 mov     ah, 42h
                 mov     al, 0
@@ -374,7 +354,7 @@ test4:
                 cmp     cl, 127
                 jz      me_empty
 
-                cmp     cl, 2Fh ;end
+                cmp     cl, 2Fh ; koniec tracku
                 jz      me_end_of_track
 
                 jmp     me_err
@@ -383,7 +363,7 @@ test4:
                 xor     cx, cx
                 mov     cl, bl
 
-                me_text_1:
+                me_text_1: ;obsługa odczytu tekstu
 
                 xor     bx, bx
                 call read_byte
@@ -396,7 +376,7 @@ test4:
 
                 jmp     me_r
 
-            me_empty:
+            me_empty: ;pusty meta event
                 xor     cx, cx
                 xor     dx, dx
                 mov     dl, bl
@@ -431,46 +411,36 @@ test4:
                 ;Out | cx:dx : czas w mikrosekundach
                 read_delta_time proc
                 push    ax bx
-                xor     cx, cx
-                ;xor     bx, bx
-                ;mov     bl, 10000000b
-            dt_read_1:
-                push    cx
-                mov     ah, 3Fh
-                mov     bx, file_access
-                mov     cx, 1
-                lea     dx, buffer
-                int     21h
-                pop     cx
-
+                xor     ax, ax
                 xor     dx, dx
-                mov     dl, buffer
+                mov     si, 0
+            ety1:
+                call read_byte
+                mov     bh, bl
+                and     bh, 10000000b
+                shr     bh, 7
+                and     bl, 01111111b
 
-                mov     ah, 2h
-                int     21h
+                mov     dh, dl
+                shr     dx, 1
+                add     dl, bl
 
-                cmp     dl, 81h
-                jb      dt_read_2
-
-                dec     dx
-                add     cx, dx
-
-                jmp     dt_read_1
-            dt_read_2:
-                add     cx, dx
-
-                ;przeliczanie opóźnień
-                xor     dx, dx
-                mov     ax, cx
-                mov     bx, 24
-                div     bx
-                mov     cx, ax
-                mov     ax, dx
-                mov     bx, 4096
-                mul     bx
-                mov     dx, ax
+                cmp     bh, 1
+                jz      ety1
 
                 pop     bx ax
+
+                mov     cx, dx
+
+                mov     dx, tempo
+                mov     ax, tempo + 2
+                mov     bx, time_division
+
+                div     bx
+                mul     cx
+
+                mov     cx, dx
+                mov     dx, ax
 
                 ret
                 read_delta_time endp
@@ -578,6 +548,12 @@ strg_file_err   db      'Wrong file$'
 file            db      80h dup(0)
 
 file_access     dw      0h
+
+tempo           dw      3h, 0FB06h
+
+note_time       dd      0
+
+time_division   dw      96
 
 finish          db      0
 
