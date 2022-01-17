@@ -72,6 +72,9 @@ start:          mov     ax,dane
 
                 mov     di, 10
 
+                call start_msg
+                push    ax
+
                 ;call    me_set_tempo
 
 ;;;;;           
@@ -96,17 +99,16 @@ test5:
                 loop    test6
                 pop     cx
 
+                mov     ah, 02h
+                mov     dl, 10
+                int     21h
+
                 mov     channel_key, 0
 
                 mov     mode, 1
 
                 ;wskazywanie tracku
-                mov     ah, 08h
-                int     21h
-
-                mov     ah, 02h
-                mov     dl, al
-                int     21h
+                pop     ax
 
                 mov     ah, 0
                 sub     ax, 48
@@ -131,8 +133,15 @@ test4:
                 call delta_time
                 call next_event
 
+                
+                mov     ah, 01h
+                int     16h
+                cmp     al, 27
+                je      exit
+
                 cmp     mode, 1
                 je     test4
+exit:
 
 ;==============================================================================================
                 mov     ah,4ch
@@ -602,6 +611,40 @@ test4:
                 ret
                 disp_note endp
 
+                start_msg proc
+                mov     ah, 09h
+                lea     dx, strg_start_msg1
+                int     21h    
+
+                mov     ax, track_num
+                add     ax, 47
+                mov     dx, ax
+
+                mov     ah, 2h
+                int     21h
+
+                mov     ah, 09h
+                lea     dx, strg_start_msg2
+                int     21h    
+
+                mov     ah, 08h
+                int     21h
+
+                mov     ah, 02h
+                mov     dl, al
+                int     21h
+
+                push    ax
+
+                mov     ah, 2h
+                mov     dl, 10
+                int     21h
+
+                pop     ax
+
+                ret
+                start_msg endp
+
                 ;Zwolnienie klawisza instrumentu
                 ;In  | cx: kanał midi
                 note_off proc
@@ -688,7 +731,7 @@ note            dw 8,       8,      9,      9,      10,     11,     11,     12, 
 
 strg_file_err   db      'Podano zly plik$'
 
-strg_start_msg1 db      'Podaj numer ścieżki MIDI (0 - $'
+strg_start_msg1 db      'Podaj numer sciezki MIDI (0 - $'
 strg_start_msg2 db      '): $'
 
 file            db      80h dup(0)
