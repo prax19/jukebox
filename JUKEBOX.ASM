@@ -22,14 +22,96 @@ start:          mov     ax,dane
                 ;setup file
                 call    setup_file
 
+                ;mov     ah, 42h
+                ;mov     al, 0
+                ;mov     bx, file_access
+                ;mov     cx, 0
+                ;mov     dx, 3FE7h
+                ;int     21h
+
+                ;odczyt ilości tracków
+                xor     cx, cx
+                mov     dx, 10
+                call skip_bytes
+
+                call read_byte
+                mov     ah, bl
+                call read_byte
+                mov     al, bl
+
+                mov     track_num, ax
+
+                xor     cx, cx
+                mov     dx, 2
+                call skip_bytes
+
+                mov     cx, track_num
+                mov     ax, 14
+                mov     di, 2
+
+            srch:
+
+                push    cx
+
+                xor     cx, cx
+                mov     dx, 6
+                call skip_bytes
+                add     ax, 6
+
+                call read_byte
+                mov     dh, bl
+                call read_byte
+                mov     dl, bl
+
+                add     ax, 2
+                add     ax, dx
+                mov     track_pos + di, ax
+
+                xor     cx, cx
+                call skip_bytes
+
+                add     di, 2
+
+                pop     cx
+
+                dec     cx
+                jnz     srch
+
+                mov     di, 10
+
+                ;mov     ah, 42h
+                ;mov     al, 0
+                ;mov     dx, track_pos + di
+                ;mov     bx, file_access
+                ;int     21h
+
+                ;call read_byte
+
+                ;mov     ah, 02h
+                ;mov     dl, bl
+                ;int     21h
+
+                mov     ah, 08h
+                int     21h
+
+                mov     ah, 0
+                sub     ax, 48
+                mov     bx, 2
+                mul     bx
+
+                mov     di, ax
+
+                ;mov     di, 8
+
                 mov     ah, 42h
                 mov     al, 0
+                mov     dx, track_pos + di
                 mov     bx, file_access
-                mov     cx, 0
-                ;mov     dx, 271Fh
-                mov     dx, 3FE7h
-                ;mov     dx, 16h
-                int     21h
+                int     21h                
+
+                xor     cx, cx
+                mov     dx, 8
+                call skip_bytes
                 
 test4:
                 call next_event
@@ -274,6 +356,24 @@ test4:
                 cmp     cl, 7
                 jz      me_text
 
+                cmp     cl, 32
+                jz      me_empty
+
+                cmp     cl, 81
+                jz      me_empty
+
+                cmp     cl, 84
+                jz      me_empty
+
+                cmp     cl, 88
+                jz      me_empty
+                
+                cmp     cl, 89
+                jz      me_empty
+
+                cmp     cl, 127
+                jz      me_empty
+
                 cmp     cl, 2Fh ;end
                 jz      me_end_of_track
 
@@ -293,6 +393,15 @@ test4:
                 int     21h
 
                 loop    me_text_1
+
+                jmp     me_r
+
+            me_empty:
+                xor     cx, cx
+                xor     dx, dx
+                mov     dl, bl
+                
+                call skip_bytes
 
                 jmp     me_r
 
@@ -473,6 +582,10 @@ file_access     dw      0h
 finish          db      0
 
 channel_key     db      0
+
+track_num       dw      0
+
+track_pos       dw      14, 0, 0, 0, 0, 0, 0, 0
 
 buffer          db      '$$$$$$$$$'
 
