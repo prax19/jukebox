@@ -41,3 +41,15 @@ Każde kolejne zdarzenie następuje po poprzednim w pętli aż do wystąpienia m
 Czas jest jednym z najważniejszych, o ile nie najważniejszym aspektem w szeroko pojętej muzyce, więc i pliki MIDI muszą zawierać informacje na jego temat w odniesieniu zarówno do pojedyńczych zdarzeń jak i całego utworu. Pliki MIDI jako punkt odniesienia przyjmują **ósemkę** (quarter note), która stanowi swoisty trzon rytmiki w teorii muzycznej.
 
 W nagłówku pliku (na dwuch bajtach, 9 bajtów po *MThd*) możemy znaleźć informację o tym ile ticków (najmniejszych możliwych odstępów między zdarzeniami) odpowiada ósemce. Dzięki temu jesteśmy w stanie odnieść wirtualny zapis nutowy do teorii muzycznej. Dowolna ścieżka może zawierać również meta event *change tempo* (meta event **0x51**), który odpowiada za zmianę tempa utworu. Zazwyczaj plik MIDI przechowuje tylko jedno takie zdarzenie. W tym evencie mamy zapisany czas, który przypada na jedną ósemkę (w mikrosekundach). Te dwa parametry będą niezbędne do obliczania rzeczywistego delta time, który pozwoli nam na opóźnianie kolejnych zdarzeń w celu usytuowania ich na osi czasu.
+
+# Źródła
+
+- [Tutorial o plikach MIDI](https://web.archive.org/web/20141227205754/http://www.sonicspot.com:80/guide/midifiles.html)
+- [Oficjalna specyfikacja plików MIDI](https://midi.org/specifications/file-format-specifications/standard-midi-files)
+- [Program do odczytu i wyświetlania danych plików MIDI](https://github.com/jeffbourdier/MIDIopsy), który przydał się przy projektowaniu programu
+- [Lista presetów instrumentów](https://github.com/pdewacht/adlipt/blob/master/opl2test/midi_instruments.h) dla syntezatora OPL2
+- [Tutorial dotyczący obsługi OPL2](https://www.fit.vutbr.cz/~arnost/opl/opl3.html)
+- [Video tutorial dotyczący obsługi OPL2](https://www.youtube.com/watch?v=XKy1cE4EYMk&ab_channel=LateBlt)
+- [Projekty leonardo_ono](https://github.com/leonardo-ono?tab=repositories&q=&type=&language=assembly&sort=) jako referencja
+- Dudek Andrzej, **Jak pisać wirusy**, Read Me, 1994, 8385769463.
+- *Kilka innych ważnych źródeł (uzupełnię i zamieszczę tutaj)*
