@@ -1,3 +1,13 @@
+    ;|=================================================|;
+    ;|................Project..Jukebox.................|;
+    ;|.......................by........................|;
+    ;|..........Patryk.Piróg.&.Jakub.Dąbrowski.........|;
+    ;|.................Styczeń.2022....................|;
+    ;|.........Uniwersytet.Śląski.w.Katowicach.........|;
+    ;|=================================================|;
+
+            ;https://github.com/prax19/jukebox
+
 Progr           segment
 
                 assume  cs:Progr, ds:dane, ss:stosik
@@ -8,8 +18,8 @@ start:          mov     ax,dane
                 mov     ss,ax
                 mov     ax,offset szczyt
                 mov     sp,ax
-;==============================================================================================
-                ;setup file
+
+                ;setup pliku
                 call    setup_file
 
                 xor     cx, cx
@@ -75,10 +85,6 @@ start:          mov     ax,dane
                 call start_msg
                 push    ax
 
-                ;call    me_set_tempo
-
-;;;;;           
-
                 push    cx
                 mov     cx, track_num
                 mov     ax, 0
@@ -115,8 +121,6 @@ test5:
 
                 call point_track 
 
-;;;;
-
                 mov     cx, 0
                 call    setup
 
@@ -142,12 +146,12 @@ test4:
                 cmp     mode, 1
                 je     test4
 exit:
-
-;==============================================================================================
                 mov     ah,4ch
                 mov     al,0
                 int     21h
+          ;========FINIFH========;
 
+                ;Konfiguracja instrumentu
                 setup proc
                 push    ax bx cx dx
                 mov     bl, 20h
@@ -198,6 +202,7 @@ exit:
                 ret
                 setup endp
 
+                ;Setup otwierania pliku
                 setup_file proc
                 mov     cl,es:[80h]
                 dec     cl
@@ -222,6 +227,7 @@ exit:
                 ret
                 setup_file endp
 
+                ;błąd odczytu pliku
                 file_err proc     
                 mov     ah, 9
                 mov     dx, offset strg_file_err
@@ -231,6 +237,8 @@ exit:
                 int     21h
                 file_err endp
 
+                ;Odczyt kolejnego bajtu z pliku
+                ;Out | bl : odczytany bajt
                 read_byte proc
                 push    ax cx dx
                 mov     ah, 3Fh
@@ -247,6 +255,7 @@ exit:
                 ret
                 read_byte endp
 
+                ;Ustaw wskaźnik pliku nad trackiem
                 ;IN  | AX: numer ścieżki
                 point_track proc
                 push    ax bx cx dx
@@ -284,6 +293,7 @@ exit:
                 ret
                 skip_bytes endp
 
+                ;Odczytaj kolejne wydarzenie pliku midi
                 next_event proc
                 push    ax bx cx dx
 
@@ -553,65 +563,29 @@ exit:
                 ret
                 delta_time endp
 
+                ;Wyświetlanie nut
                 disp_note proc
                 push    ax bx cx dx si
 
-                xor     bx, bx
-                mov     ax, dx
-                mov     bl, 12
-                div     bl
-                mov     al, 0
-                mov     di, dx
-
+                ;xor     bx, bx
+                ;mov     ax, dx
+                ;mov     bl, 12
+                ;div     bl
+                ;mov     al, 0
                 ;mov     di, ax
 
-                ;cmp     ax, 0
-                ;je      disp_c
-
-                ;cmp     ax, 1
-                ;je      disp_c#
-                                
-                ;cmp     ax, 2
-                ;je      disp_d
-                                
-                ;cmp     ax, 3
-                ;je      disp_d#
-                                
-                ;cmp     ax, 4
-                ;je      disp_e
-                                
-                ;cmp     ax, 5
-                ;je      disp_f
-                                
-                ;cmp     ax, 6
-               ; je      disp_f#
-                                
-          ;      cmp     ax, 7
-         ;       je      disp_g
-                                
-            ;    cmp     ax, 8
-            ;    je      disp_g#
-                                
-            ;    cmp     ax, 9
-             ;   je      disp_a
-                                
-            ;    cmp     ax, 10
-           ;     je      disp_a#
-                                
-            ;    cmp     ax, 11
-            ;    je      disp_h
-
-                mov     di, 11
-
                 mov     ah, 2h
-                mov     dl, note_sign + di
+                ;mov     dl, dx
                 int     21h
 
                 pop     si dx cx bx ax
                 ret
                 disp_note endp
 
+                ;Wyświetlenie tekstu z informacją
                 start_msg proc
+                push    bx cx dx
+
                 mov     ah, 09h
                 lea     dx, strg_start_msg1
                 int     21h    
@@ -627,8 +601,16 @@ exit:
                 lea     dx, strg_start_msg2
                 int     21h    
 
+            input:
                 mov     ah, 08h
                 int     21h
+                cmp     al, 48
+                jb      input
+                xor     bx, bx
+                mov     bx, track_num
+                add     bx, 47
+                cmp     al, bl
+                ja      input
 
                 mov     ah, 02h
                 mov     dl, al
@@ -642,6 +624,7 @@ exit:
 
                 pop     ax
 
+                pop dx cx bx
                 ret
                 start_msg endp
 
@@ -682,6 +665,7 @@ exit:
                 ret
                 note_on endp
 
+                ;Modyfikacja rejestu urządzenie wyjściowego
                 write_adlib proc
                 push ax bx cx dx
 			
@@ -689,22 +673,20 @@ exit:
                 mov al, bl
                 out dx, al
 
-                ; call delay
-
                 mov dx, 389h
 
                 mov cx, 6
-            .delay_1:
+            delay_1:
                 in al, dx
-                loop .delay_1
+                loop delay_1
 
                 mov al, bh
                 out dx, al
 
                 mov cx, 35
-            .delay_2:
+            delay_2:
                 in al, dx
-                loop .delay_2
+                loop delay_2
                 
                 pop dx cx bx ax
                 ret
