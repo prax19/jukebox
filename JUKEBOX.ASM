@@ -40,7 +40,6 @@ start:          mov     ax,dane
                 mov     al, bl
 
                 mov     track_num, ax
-
                 call read_byte
                 mov     ah, bl
                 call read_byte
@@ -70,6 +69,8 @@ start:          mov     ax,dane
                 add     ax, dx
                 mov     track_pos + di, ax
                 mov     pointer_pos + di, ax
+                mov     track_active + di, 1
+                inc     active_tracks
 
                 xor     cx, cx
                 call skip_bytes
@@ -94,69 +95,70 @@ start:          mov     ax,dane
                 mov     dl, 10
                 int     21h
 
-                mov     channel_key, 0
+                ;mov     channel_key, 0
 
                 mov     mode, 1
+                dec     active_tracks
 
                 pop     ax
 
-                ;DEBUG
-                mov     tempo, 3h
-                mov     tempo + 2, 0FB06h
-
-                mov     ax, 2 ;odtwarzamy tylko track 3
+                mov     ax, 0
+            test10:
+                push    ax
                 call point_track 
-                mov     di, 4
+                mov     di, ax
+                add     di, ax
                 call read_delta_time
                 call save_pointer_pos
-
-                mov     ax, 3 ;odtwarzamy tylko track 3
-                call point_track 
-                mov     di, 6
-                call read_delta_time
-                call save_pointer_pos
-
-                ;DEBUG END
-
-                ;;;;;
-                mov     di, 4 ; powinno być 0
+                pop     ax
+                inc     ax
+                cmp     ax, track_num
+                jle     test10
+                
+                mov     di, 0
             test5:          
                 mov     ax, time
                 cmp     ax, next_event_time + di
-                jl      test6
+                jb      test6
                 call load_pointer_pos
+                mov     mode, 1
                 call next_event
+                cmp     mode, 1
+                je      test9
+                mov     track_active + di, 0
+                dec     active_tracks
+                jmp     test6
+            test9:
                 call read_delta_time
                 call save_pointer_pos
             test6:
-                mov     ax, 6;;;
+
+                mov     ax, track_num
+                add     ax, track_num
+
                 cmp     di, ax
-                jle     test7
-                mov     di, 4
+                jbe     test7
+                mov     di, 0
+                inc     time
+                call delta_time
                 jmp     test8
             test7:
                 add     di, 2
             test8:
-                inc     time
-                call delta_time
+                cmp     track_active + di, 0
+                je      test6
 
-                jmp     test5;TODO: warunek wyjścia
-                ;;;;
+                ;jmp     test5
 
-                jmp     exit
-test4:
-                call read_delta_time
-                call delta_time
-                call next_event
-
-                
+                ;wciskanie escape by wyjść
                 mov     ah, 01h
                 int     16h
                 cmp     al, 27
                 je      exit
 
-                cmp     mode, 1
-                je     test4
+                cmp     active_tracks, 0
+                jg     test5
+                ;;;;
 exit:
                 mov     ah,4ch
                 mov     al,0
@@ -767,15 +769,16 @@ file_access     dw      0h
 
 tempo           dw      0000h, 0000h;3h, 0FB06h
 
-note_time       dd      0
-
 time_division   dw      0
 
 mode            db      2
 
-channel_key     db      0
+;channel_key     db      0
 
-track_num       dw      0
+track_num       dw      0 ;ilość tracków
+active_tracks   dw      0 ;ilość aktywnych tracków
+
+track_active    dw      0, 0, 0, 0, 0, 0, 0, 0
 
 time            dw      0
 
@@ -786,8 +789,6 @@ track_pos       dw      14, 0, 0, 0, 0, 0, 0, 0
 pointer_pos     dw      14, 0, 0, 0, 0, 0, 0, 0
 
 ;track_delta     dw      0, 0, 0, 0, 0, 0, 0, 0
-
-track_active    dw      0, 0, 0, 0, 0, 0, 0, 0
 
 buffer          db      '$$$$$$$$$'
 
