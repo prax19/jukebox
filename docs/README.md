@@ -36,6 +36,14 @@ Trudnością w odczycie plików midi jest z pewnością zmienna długość zdarz
 
 Każde kolejne zdarzenie następuje po poprzednim w pętli aż do wystąpienia meta evetnu **0x2F**, który mówi nam o końcu ścieżki.
 
+### Odczyt wielościeżkowy
+
+Odczyt wielościeżkowy odbywa się na zasadzie prostego algorytmu porównującego. W pętli wykonuje się odczyt eventu oraz czasu delta. Czas delta jest sumowany a następnie proównywany z aktualnym czasem. Jeżeli delta time i aktualny czas są soie równe, odczytywany jest aktualny event oraz delta time następnego eventu. W powyższej pętli jest zagnieżdżona pętla, która steruje który track ma być odtworzony, a na końcu program zatrzymuje swoją pracę na 1 tick. Jeżeli ścieżka miała meta event **0x2F** (koniec ścieżki), zmieniana jest specjalna flaga w data segmencie na 0, co umożliwia programowi pomijanie zakończonych ścieżek (np. z meta eventami, które nie mają żadnego opóźnienia).
+
+Najlepiej sposób działania multitrackingu obrazuje uprostrzony schemat blokowy:
+
+<img src="schemat_blokowy_multitrack.svg">
+
 ## Czas
 
 Czas jest jednym z najważniejszych, o ile nie najważniejszym aspektem w szeroko pojętej muzyce, więc i pliki MIDI muszą zawierać informacje na jego temat w odniesieniu zarówno do pojedyńczych zdarzeń jak i całego utworu. Pliki MIDI jako punkt odniesienia przyjmują **ósemkę** (quarter note), która stanowi swoisty trzon rytmiki w teorii muzycznej.
