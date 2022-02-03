@@ -69,7 +69,6 @@ start:          mov     ax,dane
                 add     ax, 2
                 add     ax, dx
                 mov     track_pos + di, ax
-                mov     pointer_pos + di, ax
 
                 xor     cx, cx
                 call skip_bytes
@@ -81,14 +80,30 @@ start:          mov     ax,dane
                 dec     cx
                 jnz     srch
 
-                mov     cx, 0
-                call    setup
+                mov     di, 10
 
-                mov     cx, 1
-                call    setup
+                call start_msg
+                push    ax
 
-                mov     cx, 2
-                call    setup
+                push    cx
+                mov     cx, track_num
+                mov     ax, 0
+test6:
+                mov     mode, 2
+                push    ax
+                call point_track
+
+test5:
+                call next_event
+
+                cmp     mode, 2
+                je      test5
+
+                pop     ax
+                inc     ax
+
+                loop    test6
+                pop     cx
 
                 mov     ah, 02h
                 mov     dl, 10
@@ -98,52 +113,25 @@ start:          mov     ax,dane
 
                 mov     mode, 1
 
+                ;wskazywanie tracku
                 pop     ax
 
-                ;DEBUG
-                mov     tempo, 3h
-                mov     tempo + 2, 0FB06h
+                mov     ah, 0
+                sub     ax, 48
 
-                mov     ax, 2 ;odtwarzamy tylko track 3
                 call point_track 
-                mov     di, 4
-                call read_delta_time
-                call save_pointer_pos
 
-                mov     ax, 3 ;odtwarzamy tylko track 3
-                call point_track 
-                mov     di, 6
-                call read_delta_time
-                call save_pointer_pos
+                mov     cx, 0
+                call    setup
 
-                ;DEBUG END
+                mov     cx, 1
+                call    setup
 
-                ;;;;;
-                mov     di, 4 ; powinno być 0
-            test5:          
-                mov     ax, time
-                cmp     ax, next_event_time + di
-                jl      test6
-                call load_pointer_pos
-                call next_event
-                call read_delta_time
-                call save_pointer_pos
-            test6:
-                mov     ax, 6;;;
-                cmp     di, ax
-                jle     test7
-                mov     di, 4
-                jmp     test8
-            test7:
-                add     di, 2
-            test8:
-                inc     time
-                call delta_time
+                mov     cx, 2
+                call    setup
 
-                jmp     test5;TODO: warunek wyjścia
-                ;;;;
-
-                jmp     exit
+                
+                
 test4:
                 call read_delta_time
                 call delta_time
@@ -262,7 +250,6 @@ exit:
 
                 xor     bx, bx
                 mov     bl, buffer
-
                 pop     dx cx ax
 
                 ret
@@ -293,33 +280,6 @@ exit:
 
                 ret
                 point_track endp
-
-                save_pointer_pos proc
-                push ax bx cx
-                mov     ah, 42h
-                mov     al, 1h
-                mov     bx, file_access
-                mov     cx, 0
-                mov     dx, 0
-                int     21h
-                mov     pointer_pos + di, ax
-                pop cx bx ax
-                ret
-                save_pointer_pos endp
-
-                load_pointer_pos proc
-                push ax bx cx dx
-                mov     ah, 42h
-                mov     al, 0h
-                mov     bx, file_access
-                mov     cx, 0
-                mov     dx, pointer_pos + di
-                ;mov     pointer_pos + di, ax
-                int     21h
-                ;mov     
-                pop dx cx bx ax
-                ret
-                load_pointer_pos endp
                 
                 ;Pomijanie bajtów w pliku
                 ;In  | cx:dx : ilość bajtów do pominięcia
@@ -373,10 +333,10 @@ exit:
 
             event8: ;note off
                 call read_byte
-                mov     cl, al
-                ;mov     cl, 0
-                ;dec     channel_key
-                ;add     cl, channel_key
+                ;mov     cl, al
+                mov     cl, 0
+                dec     channel_key
+                add     cl, channel_key
                 cmp     mode, 2
                 je      event8_1
                 call note_off
@@ -388,10 +348,10 @@ exit:
 
             event9: ;note on
                 call read_byte
-                mov     cl, al
-                ;mov     cl, 0
-                ;add     cl, channel_key
-                ;inc     channel_key
+                ;mov     cl, al
+                mov     cl, 0
+                add     cl, channel_key
+                inc     channel_key
                 sub     bx, 12
                 mov     si, bx
                 cmp     mode, 2
@@ -546,8 +506,8 @@ exit:
                 meta_event endp
 
                 ;Odczytanie czasu delta
-                ;In  | di : numer tracku * 2
-                ;Out | dx : czas w tickach
+                ;In  | none
+                ;Out | cx:dx : czas w mikrosekundach
                 read_delta_time proc
                 push    ax bx
                 xor     ax, ax
@@ -567,21 +527,9 @@ exit:
                 cmp     bh, 1
                 jz      ety1
 
-                ;mov     track_delta + di, dx
-                add     next_event_time + di, dx
-
                 pop     bx ax
 
-                ret
-                read_delta_time endp
-
-                ;Wstrzymanie odtwarzania
-                ;In  | di numer tracku
-                delta_time proc
-                push    ax bx cx dx
-
-                ;mov     cx ,track_delta + di
-                mov     cx, 1
+                mov     cx, dx
 
                 mov     dx, tempo
                 mov     ax, tempo + 2
@@ -593,6 +541,13 @@ exit:
                 mov     cx, dx
                 mov     dx, ax
 
+                ret
+                read_delta_time endp
+
+                ;Wstrzymanie odtwarzania
+                ;In  | cx:dx czas wstrzymania w mikrosekundach
+                delta_time proc
+                push    ax bx cx dx
                 cmp     dx, 0
                 jnz     dt_skip2
                 cmp     cx, 0
@@ -741,7 +696,7 @@ Progr           ends
 
 dane            segment
 
-;note_sign       db 67,67,68,68,69,70,70,71,71,65,65,72
+note_sign       db 67,67,68,68,69,70,70,71,71,65,65,72
 
                 ;  C        C#      D       D#      E       F       F#      G       G#      A       A#      H
 note            dw 8,       8,      9,      9,      10,     11,     11,     12,     13,     14,     15,     16
@@ -777,17 +732,7 @@ channel_key     db      0
 
 track_num       dw      0
 
-time            dw      0
-
-next_event_time dw      0, 0, 0, 0, 0, 0, 0, 0
-
 track_pos       dw      14, 0, 0, 0, 0, 0, 0, 0
-
-pointer_pos     dw      14, 0, 0, 0, 0, 0, 0, 0
-
-;track_delta     dw      0, 0, 0, 0, 0, 0, 0, 0
-
-track_active    dw      0, 0, 0, 0, 0, 0, 0, 0
 
 buffer          db      '$$$$$$$$$'
 

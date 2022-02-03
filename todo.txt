@@ -1,0 +1,28 @@
+                ;odczytanie pierwszych czasów delta z każdego tracku
+                mov     selected_track, 0
+                call    point_track_position
+                push    cx
+                mov     cx, track_num
+test6:          
+                mov     ax, selected_track
+                call point_track
+                call read_delta_time
+                call copy_pointer_state
+                call trans_to_si
+                mov     track_delta + si, dx
+                inc     selected_track
+                loop    test6
+                pop     cx
+
+                mov     selected_track, 3
+                mov     ax, selected_track
+                call point_track
+
+test5:
+                mov     cx, dx
+                call delta_time
+                call next_event
+                call copy_pointer_state
+                call read_delta_time
+                call copy_pointer_state
+                jmp     test5
